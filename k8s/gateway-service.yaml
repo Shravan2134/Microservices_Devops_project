@@ -1,0 +1,14 @@
+# users-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+  namespace: microservices-prod
+spec:
+  selector:
+    app: gateway
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: ClusterIP

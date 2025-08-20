@@ -1,0 +1,14 @@
+# users-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-service
+  namespace: microservices-prod
+spec:
+  selector:
+    app: orders
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: ClusterIP
