@@ -4,8 +4,6 @@ from .models import User
 from .schemas import UserCreate, UserRead
 import os
 
-# just for testing
-
 DB_URL = os.getenv("DB_URL", "sqlite:///./users.db")
 connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
 engine = create_engine(DB_URL, connect_args=connect_args)
