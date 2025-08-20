@@ -1,33 +1,44 @@
-trigger:
-  paths:
-    include:
-      - users/**
+name: Deploy Users Service
 
-pool:
-  vmImage: 'ubuntu-latest'
+on:
+  push:
+    paths:
+      - 'users/**'
 
-variables:
-  IMAGE_NAME: 'users'
-  PROJECT_ID: '<your-gcp-project>'
-  CLUSTER_NAME: 'gke-microservices'
-  CLUSTER_ZONE: 'asia-south1-a'
-  NAMESPACE: 'microservices-prod'
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-steps:
-- task: GoogleCloudSDKInstaller@1
+    env:
+      PROJECT_ID: your-gcp-project-id
+      IMAGE_NAME: users
+      CLUSTER_NAME: gke-microservices
+      CLUSTER_ZONE: asia-south1-a
+      NAMESPACE: microservices-prod
 
-- script: |
-    gcloud auth activate-service-account --key-file=$(GOOGLE_APPLICATION_CREDENTIALS)
-    gcloud config set project $PROJECT_ID
-    gcloud container clusters get-credentials $CLUSTER_NAME --zone $CLUSTER_ZONE
-  displayName: 'Authenticate with GCP'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-- script: |
-    docker build -t gcr.io/$PROJECT_ID/$IMAGE_NAME:$(Build.BuildId) ./users
-    docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:$(Build.BuildId)
-  displayName: 'Build and Push Docker Image'
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ env.PROJECT_ID }}
 
-- script: |
-    sed -i "s|IMAGE_PLACEHOLDER|gcr.io/$PROJECT_ID/$IMAGE_NAME:$(Build.BuildId)|g" users/manifests/deployment.yaml
-    kubectl apply -f users/manifests/ -n $NAMESPACE
-  displayName: 'Deploy to GKE'
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }} ./users
+        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+    - name: Get GKE Credentials
+      run: |
+        gcloud container clusters get-credentials $CLUSTER_NAME --zone $CLUSTER_ZONE
+
+    - name: Deploy to GKE
+      run: |
+        sed -i "s|IMAGE_PLACEHOLDER|gcr.io/${{ env.PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|g" users/manifests/deployment.yaml
+        kubectl apply -f users/manifests/ -n $NAMESPACE
